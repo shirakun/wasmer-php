@@ -1,5 +1,7 @@
 # PHP 8.5 for Wasmer
 
+[![Build and publish the PHP runtime](https://github.com/shirakun/wasmer-php/actions/workflows/php-runtime.yml/badge.svg)](https://github.com/shirakun/wasmer-php/actions/workflows/php-runtime.yml)
+
 [![Wasmer package](https://img.shields.io/badge/wasmer-shira%2Fphp%408.5.7-654ff0)](https://wasmer.io/shira/php)
 
 Build and publish a **PHP 8.5 runtime as a Wasmer package**, so `wasmer run` and
@@ -192,7 +194,7 @@ scripts/publish.sh         build + `wasmer publish`
 
 ## CI
 
-`.github/workflows/build-and-publish.yml` builds the package on demand
+`.github/workflows/php-runtime.yml` builds the package on demand
 (`workflow_dispatch`) and on `php-*` tags, uploads the `.webc` artefact and
 publishes when `publish` is selected. It needs:
 
