@@ -1,6 +1,5 @@
 # PHP 8.5 for Wasmer
 
-[![Build and publish the PHP runtime](https://github.com/shirakun/wasmer-php/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/shirakun/wasmer-php/actions/workflows/build-and-publish.yml)
 [![Wasmer package](https://img.shields.io/badge/wasmer-shira%2Fphp%408.5.7-654ff0)](https://wasmer.io/shira/php)
 
 Build and publish a **PHP 8.5 runtime as a Wasmer package**, so `wasmer run` and
@@ -32,7 +31,11 @@ Compiled extensions: `bcmath`, `curl`, `exif`, `ftp`, `gd`, `iconv`, `igbinary`,
 
 ## Requirements
 
-* [Docker](https://docs.docker.com/get-docker/) (the PHP WASIX build runs in a container)
+* [Docker](https://docs.docker.com/get-docker/) (the PHP WASIX build runs in a container).
+  Building the image resolves the WASIX sysroot and LLVM through `api.github.com`; if that
+  is rate limited (shared CI runners), pass a token:
+  `docker build --secret id=github_token,env=GITHUB_TOKEN -t wasmer-php-builder:8.5 docker`
+  (CI does this automatically with the runner token, `build.ps1` picks up `GITHUB_TOKEN`/`GH_TOKEN`)
 * [Wasmer CLI](https://docs.wasmer.io/install) `>= 4` — `wasmer whoami` must show your account
 * On Windows: PowerShell 7 (the wrapper) — no local C toolchain is needed
 

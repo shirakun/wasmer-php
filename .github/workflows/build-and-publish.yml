@@ -50,7 +50,11 @@ jobs:
           echo "branch=${branch}" >> "$GITHUB_OUTPUT"
 
       - name: Build the builder image
-        run: docker build --tag "${IMAGE}" docker
+        env:
+          # `wasixccenv` resolves the sysroot/LLVM assets over api.github.com and gets
+          # rate limited anonymously; pass the runner token as a BuildKit secret.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker build --tag "${IMAGE}" --secret id=github_token,env=GH_TOKEN docker
 
       - name: Compile PHP ${{ steps.inputs.outputs.version }} for WASIX
         env:

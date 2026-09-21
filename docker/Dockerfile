@@ -43,7 +43,16 @@ RUN curl -fsSL -o /tmp/binaryen.tar.gz \
     && rm -rf /tmp/binaryen.tar.gz /tmp/binaryen-${BINARYEN_VERSION}
 
 # wasixcc + WASIX sysroot + LLVM toolchain.
-RUN curl -fsSL -o /tmp/wasixcc.tar.gz \
+#
+# `wasixccenv download-*` resolves the release assets through api.github.com, which
+# answers 403 "rate limit exceeded" for anonymous calls from shared CI runners.
+# Pass a token to authenticate those calls:
+#
+#   docker build --secret id=github_token,env=GITHUB_TOKEN -t wasmer-php-builder:8.5 docker
+#
+# The secret is optional: local builds can omit it and fall back to anonymous calls.
+RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN,required=false \
+    curl -fsSL -o /tmp/wasixcc.tar.gz \
         "https://github.com/wasix-org/wasixcc/releases/download/${WASIXCC_VERSION}/wasixcc-x86_64-unknown-linux-gnu.tar.gz" \
     && tar -xzf /tmp/wasixcc.tar.gz -C /tmp \
     && mkdir -p /opt/wasixcc/bin \

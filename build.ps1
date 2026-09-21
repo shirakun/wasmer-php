@@ -73,7 +73,16 @@ if ($Namespace -eq '') {
 
 if (-not $SkipBuild) {
     Write-Step "Building the build image ($ImageName)"
-    Invoke-External docker @('build', '--tag', $ImageName, (Join-Path $root 'docker'))
+
+    # `wasixccenv download-*` resolves release assets over api.github.com; a token avoids
+    # the anonymous rate limit (see docker/Dockerfile). Optional for local builds.
+    $secretArguments = @()
+    if ($env:GITHUB_TOKEN -or $env:GH_TOKEN) {
+        if (-not $env:GITHUB_TOKEN) { $env:GITHUB_TOKEN = $env:GH_TOKEN }
+        $secretArguments = @('--secret', 'id=github_token,env=GITHUB_TOKEN')
+    }
+
+    Invoke-External docker (@('build', '--tag', $ImageName) + $secretArguments + @((Join-Path $root 'docker')))
 
     Write-Step "Compiling PHP $PhpVersion ($PhpBranch) for WASIX"
     Invoke-External docker @(
