@@ -8,7 +8,7 @@ version = "__VERSION__"
 description = "PHP 8.5 CLI runtime powered by WASIX. Runs PHP scripts, the built-in web server and Composer on the Wasmer runtime."
 license = "PHP-3.01"
 readme = "./README.md"
-repository = "https://github.com/wasmer-php/wasmer-php"
+repository = "https://github.com/shirakun/wasmer-php"
 homepage = "https://wasmer.io/__NAMESPACE__/__PACKAGE_NAME__"
 entrypoint = "php"
 
