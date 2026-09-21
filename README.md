@@ -1,7 +1,12 @@
 # PHP 8.5 for Wasmer
 
+[![Build and publish the PHP runtime](https://github.com/shirakun/wasmer-php/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/shirakun/wasmer-php/actions/workflows/build-and-publish.yml)
+[![Wasmer package](https://img.shields.io/badge/wasmer-shira%2Fphp%408.5.7-654ff0)](https://wasmer.io/shira/php)
+
 Build and publish a **PHP 8.5 runtime as a Wasmer package**, so `wasmer run` and
 Wasmer Edge can execute PHP 8.5 code — the official registry only ships PHP 8.3.
+
+Published: [`shira/php@8.5.7`](https://wasmer.io/shira/php)
 
 The package bundles `php.wasm` (PHP 8.5 CLI compiled for
 [WASIX](https://wasix.org): WASI preview 1 plus the POSIX extensions PHP needs)
