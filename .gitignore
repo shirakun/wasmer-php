@@ -1,0 +1,15 @@
+# Build outputs
+/build/
+/dist/
+*.webc
+
+# Local tooling caches
+.phpstan.cache/
+.phpunit.cache/
+vendor/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

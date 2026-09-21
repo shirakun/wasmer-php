@@ -1,0 +1,15 @@
+services:
+  builder:
+    build:
+      context: ./docker
+    image: wasmer-php-builder:8.5
+    working_dir: /work
+    volumes:
+      - ./:/work
+      - wasix-sources:/src
+    environment:
+      PHP_BRANCH: ${PHP_BRANCH:-8.5.7-wasix}
+      PHP_VERSION: ${PHP_VERSION:-8.5.7}
+
+volumes:
+  wasix-sources:

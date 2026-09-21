@@ -1,0 +1,30 @@
+# Wasmer package manifest for the PHP 8.5 runtime.
+#
+# The namespace, package name and version placeholders below are replaced by
+# `scripts/build-package.sh` (or `build.ps1`) while assembling ./dist.
+[package]
+name = "__NAMESPACE__/__PACKAGE_NAME__"
+version = "__VERSION__"
+description = "PHP 8.5 CLI runtime powered by WASIX. Runs PHP scripts, the built-in web server and Composer on the Wasmer runtime."
+license = "PHP-3.01"
+readme = "./README.md"
+repository = "https://github.com/wasmer-php/wasmer-php"
+homepage = "https://wasmer.io/__NAMESPACE__/__PACKAGE_NAME__"
+entrypoint = "php"
+
+[fs]
+"/etc/ssl" = "./php-wasix-deps/openssl/ssl"
+"/icu" = "./php-wasix-deps/icu"
+
+[[module]]
+name = "php"
+source = "./modules/php"
+abi = "wasi"
+
+[[command]]
+name = "php"
+module = "php"
+runner = "https://webc.org/runner/wasi"
+
+[command.annotations.wasi]
+atom = "php"

@@ -1,0 +1,7 @@
+# Shell scripts and the Dockerfile are executed inside Linux containers: keep LF endings.
+* text=auto eol=lf
+
+# Binary artefacts
+*.wasm binary
+*.webc binary
+*.dat  binary

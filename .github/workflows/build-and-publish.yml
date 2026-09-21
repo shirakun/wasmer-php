@@ -1,0 +1,97 @@
+name: Build and publish the PHP runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      php_version:
+        description: PHP version packaged into the runtime
+        default: "8.5.7"
+        required: true
+      php_branch:
+        description: Branch of wasix-org/php to build
+        default: "8.5.7-wasix"
+        required: true
+      publish:
+        description: Publish the package to the Wasmer registry
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "php-*"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: wasmer-php-builder:8.5
+
+jobs:
+  build:
+    name: Build PHP for WASIX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve build inputs
+        id: inputs
+        env:
+          INPUT_VERSION: ${{ inputs.php_version }}
+          INPUT_BRANCH: ${{ inputs.php_branch }}
+        run: |
+          version="${INPUT_VERSION:-8.5.7}"
+          branch="${INPUT_BRANCH:-8.5.7-wasix}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/php-* ]]; then
+            version="${GITHUB_REF_NAME#php-}"
+            branch="${version}-wasix"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the builder image
+        run: docker build --tag "${IMAGE}" docker
+
+      - name: Compile PHP ${{ steps.inputs.outputs.version }} for WASIX
+        env:
+          PHP_VERSION: ${{ steps.inputs.outputs.version }}
+          PHP_BRANCH: ${{ steps.inputs.outputs.branch }}
+        run: |
+          docker run --rm \
+            --volume "$PWD":/work \
+            --volume wasix-sources:/src \
+            --env PHP_VERSION="${PHP_VERSION}" \
+            --env PHP_BRANCH="${PHP_BRANCH}" \
+            --workdir /work \
+            "${IMAGE}" \
+            bash scripts/build-runtime.sh
+
+      - uses: wasmerio/setup-wasmer@v3.1
+
+      - name: Package
+        env:
+          NAMESPACE: ${{ vars.WASMER_NAMESPACE || 'shira' }}
+          PACKAGE_NAME: php
+          PHP_VERSION: ${{ steps.inputs.outputs.version }}
+        run: bash scripts/build-package.sh
+
+      - name: Smoke test the package
+        run: |
+          wasmer run build/php-*.webc -- -r 'printf("PHP %s\n", PHP_VERSION);'
+          wasmer run build/php-*.webc -- -r 'var_dump(extension_loaded("intl"), extension_loaded("openssl"));'
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ steps.inputs.outputs.version }}-webc
+          path: build/*.webc
+          compression-level: 0
+
+      - name: Publish
+        if: ${{ inputs.publish || startsWith(github.ref, 'refs/tags/php-') }}
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+          NAMESPACE: ${{ vars.WASMER_NAMESPACE || 'shira' }}
+          PACKAGE_NAME: php
+          PHP_VERSION: ${{ steps.inputs.outputs.version }}
+        run: bash scripts/publish.sh

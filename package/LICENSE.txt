@@ -1,0 +1,10 @@
+The PHP runtime distributed in this package (php.wasm and the ICU/OpenSSL
+runtime data) is a build of the PHP interpreter and is therefore distributed
+under the PHP License v3.01:
+
+    https://www.php.net/license/3_01.txt
+
+The build scripts that produce this package (see the wasmer-php repository)
+are MIT licensed. The WASIX port itself comes from wasix-org/php, and the
+prebuilt WASIX libraries come from wasix-org/php-wasix-deps; both are
+distributed by the Wasmer/WASIX project under their respective licenses.
