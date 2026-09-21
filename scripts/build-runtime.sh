@@ -72,4 +72,11 @@ cp -R "${PHP_WASIX_DEPS}/openssl/ssl" "${WORKSPACE}/dist/php-wasix-deps/openssl/
 
 printf '%s\n' "${PHP_VERSION}" > "${WORKSPACE}/dist/PHP_VERSION"
 
+# The build runs as root inside the container, so the staged files would belong to
+# root on the host. Linux/WSL users (and CI runners) then cannot write into dist/
+# when packaging. Hand the artefacts back to whoever owns the workspace.
+if [ -w "${WORKSPACE}/dist" ]; then
+    chmod -R a+rwX "${WORKSPACE}/dist" 2>/dev/null || true
+fi
+
 log "Built $(du -h "${WORKSPACE}/dist/modules/php" | cut -f1) php.wasm for PHP ${PHP_VERSION}"
