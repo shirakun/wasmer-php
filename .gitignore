@@ -1,3 +1,6 @@
+# Local build scratch space (ported php-src trees, patches)
+.work/
+
 # Build outputs
 /build/
 /dist/

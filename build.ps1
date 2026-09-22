@@ -16,7 +16,11 @@
     Version of the PHP runtime, recorded in wasmer.toml.
 
 .PARAMETER PhpBranch
-    Branch of wasix-org/php to build.
+    Branch of wasix-org/php carrying the WASIX patches.
+
+.PARAMETER Port
+    Force porting the WASIX patches onto the requested PHP version before building.
+    It happens automatically when PhpBranch does not match PhpVersion.
 
 .PARAMETER SkipBuild
     Reuse the artefacts already present in .\dist (do not run the container).
@@ -36,9 +40,10 @@
 param(
     [string] $Namespace = '',
     [string] $PackageName = 'php',
-    [string] $PhpVersion = '8.5.7',
+    [string] $PhpVersion = '8.5.10',
     [string] $PhpBranch = '8.5.7-wasix',
     [string] $ImageName = 'wasmer-php-builder:8.5',
+    [switch] $Port,
     [switch] $SkipBuild,
     [switch] $Publish,
     [switch] $DryRun
@@ -71,6 +76,10 @@ if ($Namespace -eq '') {
     throw 'Unable to detect the registry namespace; pass -Namespace explicitly.'
 }
 
+# wasix-org/php only branches the versions the Wasmer team released; a newer upstream
+# patch release is built by porting the WASIX overlay onto php-src first.
+$portOverlay = $Port -or ($PhpBranch -notlike "$PhpVersion-*")
+
 if (-not $SkipBuild) {
     Write-Step "Building the build image ($ImageName)"
 
@@ -84,17 +93,36 @@ if (-not $SkipBuild) {
 
     Invoke-External docker (@('build', '--tag', $ImageName) + $secretArguments + @((Join-Path $root 'docker')))
 
-    Write-Step "Compiling PHP $PhpVersion ($PhpBranch) for WASIX"
-    Invoke-External docker @(
+    if ($portOverlay) {
+        Write-Step "Porting the WASIX overlay from $PhpBranch onto PHP $PhpVersion"
+        Invoke-External docker @(
+            'run', '--rm',
+            '--volume', "${root}:/work",
+            '--workdir', '/work',
+            '--env', "PHP_VERSION=$PhpVersion",
+            '--env', "PHP_BASE_BRANCH=$PhpBranch",
+            '--env', 'FORCE=1',
+            $ImageName,
+            'bash', 'scripts/port-wasix-version.sh'
+        )
+    }
+
+    Write-Step "Compiling PHP $PhpVersion for WASIX"
+    $compileArguments = @(
         'run', '--rm',
         '--volume', "${root}:/work",
         '--volume', 'wasix-sources:/src',
-        '--env', "PHP_BRANCH=$PhpBranch",
-        '--env', "PHP_VERSION=$PhpVersion",
         '--workdir', '/work',
-        $ImageName,
-        'bash', 'scripts/build-runtime.sh'
+        '--env', "PHP_BRANCH=$PhpBranch",
+        '--env', "PHP_VERSION=$PhpVersion"
     )
+
+    if ($portOverlay) {
+        $compileArguments += @('--env', "PHP_SOURCE_DIR=/work/.work/php-$PhpVersion")
+    }
+
+    $compileArguments += @($ImageName, 'bash', 'scripts/build-runtime.sh')
+    Invoke-External docker $compileArguments
 }
 
 if (-not (Test-Path (Join-Path $root 'dist/modules/php'))) {

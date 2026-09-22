@@ -2,12 +2,12 @@
 
 [![Build and publish the PHP runtime](https://github.com/shirakun/wasmer-php/actions/workflows/php-runtime.yml/badge.svg)](https://github.com/shirakun/wasmer-php/actions/workflows/php-runtime.yml)
 
-[![Wasmer package](https://img.shields.io/badge/wasmer-shira%2Fphp%408.5.7-654ff0)](https://wasmer.io/shira/php)
+[![Wasmer package](https://img.shields.io/badge/wasmer-shira%2Fphp%408.5.10-654ff0)](https://wasmer.io/shira/php)
 
 Build and publish a **PHP 8.5 runtime as a Wasmer package**, so `wasmer run` and
 Wasmer Edge can execute PHP 8.5 code — the official registry only ships PHP 8.3.
 
-Published: [`shira/php@8.5.7`](https://wasmer.io/shira/php)
+Published: [`shira/php@8.5.10`](https://wasmer.io/shira/php)
 
 The package bundles `php.wasm` (PHP 8.5 CLI compiled for
 [WASIX](https://wasix.org): WASI preview 1 plus the POSIX extensions PHP needs)
@@ -16,7 +16,7 @@ load at runtime.
 
 ```bash
 wasmer run shira/php -- -r 'echo PHP_VERSION, PHP_EOL;'
-# 8.5.7
+# 8.5.10
 ```
 
 ## What is in the package
@@ -54,7 +54,7 @@ Compiled extensions: `bcmath`, `curl`, `exif`, `ftp`, `gd`, `iconv`, `igbinary`,
 ```bash
 # Linux / macOS
 docker compose run --rm builder bash scripts/build-runtime.sh   # compile PHP 8.5 -> dist/
-bash scripts/build-package.sh                                  # dist/ -> build/php-8.5.7.webc
+bash scripts/build-package.sh                                  # dist/ -> build/php-8.5.10.webc
 wasmer publish dist                                            # push to the registry
 
 wasmer run dist -- -r 'echo PHP_VERSION, PHP_EOL;'              # smoke test the local package
@@ -69,14 +69,19 @@ prebuilt dependency libraries, then compiles PHP, ~30-45 min on 12 cores).
 
 ### Release status
 
-`PHP 8.5.7` is published as `shira/php@8.5.7`
+`PHP 8.5.10` is published as `shira/php@8.5.10`
 ([package page](https://wasmer.io/shira/php)), verified on Linux with
 Wasmer 7.4.2:
 
 ```console
 $ wasmer run shira/php -- -r 'printf("PHP %s INT_SIZE=%d\n", PHP_VERSION, PHP_INT_SIZE);'
-PHP 8.5.7 INT_SIZE=8
+PHP 8.5.10 INT_SIZE=8
 ```
+
+It is built by porting the WASIX overlay from `8.5.7-wasix` onto upstream
+`php-8.5.10` (`scripts/port-wasix-version.sh`), because `wasix-org/php` has not
+branched 8.5.10 yet. The earlier `shira/php@8.5.7` release stays on the registry
+(versions are immutable) but is no longer the latest.
 
 `curl`, `gd`, `imagick`, `intl`, `mbstring`, `openssl`, `pdo_sqlite`, `sodium`
 and `zip` are loaded; HTTPS requests and `php -S` (built-in web server) work.
@@ -114,7 +119,7 @@ version = "0.1.0"
 entrypoint = "web"
 
 [dependencies]
-"shira/php" = "8.5.7"
+"shira/php" = "8.5.10"
 
 [[command]]
 name = "web"
@@ -167,8 +172,7 @@ and without it wasixcc links the exnref sysroot and fails on `libc++.a`
 
 ### Building another PHP version
 
-Every branch of `wasix-org/php` named `<version>-wasix` can be packaged by
-overriding the two inputs:
+**A `*-wasix` branch exists** (the Wasmer team released that version) — build it directly:
 
 ```powershell
 .\build.ps1 -PhpVersion 8.4.22 -PhpBranch 8.4.22-wasix -Publish
@@ -176,6 +180,34 @@ overriding the two inputs:
 
 ```bash
 PHP_BRANCH=8.4.22-wasix PHP_VERSION=8.4.22 docker compose run --rm builder bash scripts/build-runtime.sh
+```
+
+**Only upstream php-src has the release** — the usual case for a fresh patch release,
+because `wasix-org/php` lags behind. Port the WASIX overlay onto it first:
+
+```powershell
+.\build.ps1 -PhpVersion 8.5.10 -PhpBranch 8.5.7-wasix -Publish   # ports automatically
+```
+
+```bash
+docker compose run --rm -e PHP_VERSION=8.5.10 -e PHP_BASE_BRANCH=8.5.7-wasix -e FORCE=1 \
+  builder bash scripts/port-wasix-version.sh
+
+docker compose run --rm -e PHP_VERSION=8.5.10 -e PHP_SOURCE_DIR=/work/.work/php-8.5.10 \
+  builder bash scripts/build-runtime.sh
+```
+
+`build.ps1` ports automatically whenever `-PhpBranch` does not match `-PhpVersion`
+(force it with `-Port`).
+
+`scripts/port-wasix-version.sh` expresses the WASIX port as
+`diff(php-<branch version> -> <wasix branch>)` — about 65 core files, plus the vendored
+`ext/igbinary` and `ext/imagick` — and applies it onto the requested `php-src` tag in
+`.work/php-<version>`. The resulting runtime reports the upstream version:
+
+```console
+$ wasmer run build/php-8.5.10.webc -- -r 'echo PHP_VERSION;'
+8.5.10
 ```
 
 ## Layout
@@ -203,7 +235,8 @@ publishes when `publish` is selected. It needs:
 
 Publishing is guarded: `scripts/publish.sh` refuses to upload a version that already
 exists on the registry (versions are immutable), so every release needs a new
-`PHP_VERSION`/`PHP_BRANCH` pair, e.g. `php_version: 8.5.8`, `php_branch: 8.5.8-wasix`.
+`php_version` — e.g. `php_version: 8.5.10` with `wasix_branch: 8.5.7-wasix` (the patched
+overlay is ported onto that PHP release during the run).
 
 ## Troubleshooting
 
@@ -245,7 +278,7 @@ The compile recipe and the prebuilt WASIX libraries come from
 .\build.ps1
 
 # 2. 打包成本地 .webc 并试跑
-wasmer run .\build\php-8.5.7.webc -- -r 'echo PHP_VERSION;'
+wasmer run .\build\php-8.5.10.webc -- -r 'echo PHP_VERSION;'
 
 # 3. 校验发布流程（不真正上传）
 .\build.ps1 -SkipBuild -Publish -DryRun

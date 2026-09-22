@@ -24,7 +24,7 @@ wasmer run shira/php --net --volume .:/app -- -t /app -S localhost:8080
 
 ```toml
 [dependencies]
-"shira/php" = "8.5.7"
+"shira/php" = "8.5.10"
 
 [[command]]
 name = "web"

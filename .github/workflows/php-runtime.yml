@@ -5,10 +5,10 @@ on:
     inputs:
       php_version:
         description: PHP version packaged into the runtime
-        default: "8.5.7"
+        default: "8.5.10"
         required: true
-      php_branch:
-        description: Branch of wasix-org/php to build
+      wasix_branch:
+        description: wasix-org/php branch carrying the WASIX patches
         default: "8.5.7-wasix"
         required: true
       publish:
@@ -36,14 +36,13 @@ jobs:
         id: inputs
         env:
           INPUT_VERSION: ${{ inputs.php_version }}
-          INPUT_BRANCH: ${{ inputs.php_branch }}
+          INPUT_BRANCH: ${{ inputs.wasix_branch }}
         run: |
-          version="${INPUT_VERSION:-8.5.7}"
+          version="${INPUT_VERSION:-8.5.10}"
           branch="${INPUT_BRANCH:-8.5.7-wasix}"
 
           if [[ "${GITHUB_REF}" == refs/tags/php-* ]]; then
             version="${GITHUB_REF_NAME#php-}"
-            branch="${version}-wasix"
           fi
 
           echo "version=${version}" >> "$GITHUB_OUTPUT"
@@ -56,6 +55,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: docker build --tag "${IMAGE}" --secret id=github_token,env=GH_TOKEN docker
 
+      - name: Port the WASIX overlay onto PHP ${{ steps.inputs.outputs.version }}
+        env:
+          PHP_VERSION: ${{ steps.inputs.outputs.version }}
+          PHP_BASE_BRANCH: ${{ steps.inputs.outputs.branch }}
+        run: |
+          docker run --rm \
+            --volume "$PWD":/work \
+            --workdir /work \
+            --env PHP_VERSION="${PHP_VERSION}" \
+            --env PHP_BASE_BRANCH="${PHP_BASE_BRANCH}" \
+            --env FORCE=1 \
+            "${IMAGE}" \
+            bash scripts/port-wasix-version.sh
+
       - name: Compile PHP ${{ steps.inputs.outputs.version }} for WASIX
         env:
           PHP_VERSION: ${{ steps.inputs.outputs.version }}
@@ -64,9 +77,9 @@ jobs:
           docker run --rm \
             --volume "$PWD":/work \
             --volume wasix-sources:/src \
-            --env PHP_VERSION="${PHP_VERSION}" \
-            --env PHP_BRANCH="${PHP_BRANCH}" \
             --workdir /work \
+            --env PHP_VERSION="${PHP_VERSION}" \
+            --env PHP_SOURCE_DIR="/work/.work/php-${PHP_VERSION}" \
             "${IMAGE}" \
             bash scripts/build-runtime.sh
 

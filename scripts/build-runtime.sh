@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 #
-# Builds the PHP 8.5 CLI for WASIX and stages the runtime artefacts in ./dist.
+# Builds the PHP CLI for WASIX and stages the runtime artefacts in ./dist.
 #
-# Run it inside the build container (see docker/Dockerfile), for example:
+# Run it inside the build container (see docker/Dockerfile):
 #
 #   docker compose run --rm builder bash scripts/build-runtime.sh
 #
 # Environment:
-#   PHP_BRANCH   wasix-org/php branch to build      (default: 8.5.7-wasix)
-#   PHP_VERSION  version recorded in the package    (default: 8.5.7)
-#   SRC_DIR      checkout location inside the image (default: /src)
-#   WORKSPACE    mounted workspace                  (default: /work)
+#   PHP_BRANCH       wasix-org/php branch to build          (default: 8.5.7-wasix)
+#   PHP_VERSION      version recorded in the package        (default: 8.5.7)
+#   PHP_SOURCE_DIR   build a prepared tree instead of cloning (see scripts/port-wasix-version.sh)
+#   SRC_DIR          checkout location inside the image     (default: /src)
+#   WORKSPACE        mounted workspace                      (default: /work)
+#   SKIP_CONFIGURE   set to 1 to reuse an existing configure run
 set -euo pipefail
 
 PHP_BRANCH="${PHP_BRANCH:-8.5.7-wasix}"
 PHP_VERSION="${PHP_VERSION:-8.5.7}"
+PHP_SOURCE_DIR="${PHP_SOURCE_DIR:-}"
 SRC_DIR="${SRC_DIR:-/src}"
 WORKSPACE="${WORKSPACE:-/work}"
 PHP_REPOSITORY="${PHP_REPOSITORY:-https://github.com/wasix-org/php.git}"
@@ -22,16 +25,32 @@ DEPS_REPOSITORY="${DEPS_REPOSITORY:-https://github.com/wasix-org/php-wasix-deps.
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
-log "Checking out wasix-org/php (${PHP_BRANCH})"
 mkdir -p "${SRC_DIR}"
-if [ -d "${SRC_DIR}/php/.git" ]; then
-    git -C "${SRC_DIR}/php" fetch --depth 1 origin "${PHP_BRANCH}"
-    git -C "${SRC_DIR}/php" checkout --force FETCH_HEAD
+
+# PHP sources: either a tree prepared by scripts/port-wasix-version.sh (used when the
+# requested PHP release has no wasix-org/php branch yet) or the branch itself.
+if [ -n "${PHP_SOURCE_DIR}" ]; then
+    PHP_TREE="${PHP_SOURCE_DIR}"
+    log "Using the prepared PHP source tree at ${PHP_TREE} (PHP ${PHP_VERSION})"
+
+    if [ ! -f "${PHP_TREE}/buildconf" ]; then
+        echo "${PHP_TREE} does not look like a php-src checkout." >&2
+        exit 1
+    fi
 else
-    git clone --depth 1 --branch "${PHP_BRANCH}" "${PHP_REPOSITORY}" "${SRC_DIR}/php"
+    PHP_TREE="${SRC_DIR}/php"
+    log "Checking out wasix-org/php (${PHP_BRANCH})"
+
+    if [ -d "${PHP_TREE}/.git" ]; then
+        git -C "${PHP_TREE}" fetch --depth 1 origin "${PHP_BRANCH}"
+        git -C "${PHP_TREE}" checkout --force FETCH_HEAD
+    else
+        git clone --depth 1 --branch "${PHP_BRANCH}" "${PHP_REPOSITORY}" "${PHP_TREE}"
+    fi
 fi
 
 log "Checking out php-wasix-deps (prebuilt WASIX libraries: openssl, icu, curl, gd, ...)"
+
 if [ -d "${SRC_DIR}/php-wasix-deps/.git" ]; then
     git -C "${SRC_DIR}/php-wasix-deps" pull --ff-only
 else
@@ -48,7 +67,7 @@ export WASIXCC_WASM_EXCEPTIONS="${WASIXCC_WASM_EXCEPTIONS:-legacy}"
 export WASIXCC_INCLUDE_CPP_SYMBOLS="${WASIXCC_INCLUDE_CPP_SYMBOLS:-yes}"
 export WASIX_64BIT_LONG_PATCH="${WASIX_64BIT_LONG_PATCH:-yes}"
 
-cd "${SRC_DIR}/php"
+cd "${PHP_TREE}"
 
 if [ "${SKIP_CONFIGURE:-0}" = "1" ]; then
     log "Skipping configure (SKIP_CONFIGURE=1)"
@@ -62,7 +81,7 @@ bash wasix-build-eh.sh
 
 log "Staging runtime artefacts in ${WORKSPACE}/dist"
 mkdir -p "${WORKSPACE}/dist/modules" "${WORKSPACE}/dist/php-wasix-deps/openssl"
-cp "${SRC_DIR}/php/sapi/cli/php.wasm" "${WORKSPACE}/dist/modules/php"
+cp "${PHP_TREE}/sapi/cli/php.wasm" "${WORKSPACE}/dist/modules/php"
 
 rm -rf "${WORKSPACE}/dist/php-wasix-deps/icu"
 cp -R "${PHP_WASIX_DEPS}/icu" "${WORKSPACE}/dist/php-wasix-deps/icu"
