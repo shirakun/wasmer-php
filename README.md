@@ -201,6 +201,10 @@ publishes when `publish` is selected. It needs:
 * `secrets.WASMER_TOKEN` — a Wasmer registry access token (`wasmer.io/settings/access-tokens`);
 * `vars.WASMER_NAMESPACE` — the namespace to publish into (optional, defaults to `shira`).
 
+Publishing is guarded: `scripts/publish.sh` refuses to upload a version that already
+exists on the registry (versions are immutable), so every release needs a new
+`PHP_VERSION`/`PHP_BRANCH` pair, e.g. `php_version: 8.5.8`, `php_branch: 8.5.8-wasix`.
+
 ## Troubleshooting
 
 * **`missing import "wasix_32v1..."`** — the module and the runtime disagree on
